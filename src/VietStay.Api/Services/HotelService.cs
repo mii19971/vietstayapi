@@ -21,14 +21,19 @@ public sealed class HotelService(MongoDb db, InventoryService inventory, StaySer
     private const int DefaultSuggestLimit = 20;
     private const double DefaultRadiusKm = 20;
 
-    /// <summary>Tên gọi khác của thành phố (đã bỏ dấu).</summary>
+    /// <summary>
+    /// Tên gọi khác của thành phố (đã bỏ dấu). Không cần khai báo dạng viết liền như "danang", "hoian":
+    /// mọi tên đều được so khớp sau khi bỏ dấu cách.
+    /// </summary>
     private static readonly Dictionary<string, string[]> CityAliases = new()
     {
-        ["ho-chi-minh"] = ["sai gon", "saigon", "hcm", "tphcm", "tp hcm", "ho chi minh"],
-        ["ha-noi"] = ["hanoi", "hn"],
-        ["da-nang"] = ["danang"],
-        ["ha-long"] = ["halong", "vinh ha long"],
+        ["ho-chi-minh"] = ["sai gon", "hcm", "tphcm", "ho chi minh"],
+        ["ha-noi"] = ["hn"],
+        ["ha-long"] = ["vinh ha long"],
     };
+
+    /// <summary>"tp. ho chi minh" → "tphochiminh": bỏ dấu cách và dấu chấm để "danang" khớp "da nang".</summary>
+    private static string Compact(string normalized) => normalized.Replace(" ", "").Replace(".", "");
 
     /// <summary>
     /// Gợi ý khi gõ: xác định địa điểm từ từ khóa, lấy tối đa <c>limit</c> khách sạn gần nhất còn phòng
@@ -76,17 +81,18 @@ public sealed class HotelService(MongoDb db, InventoryService inventory, StaySer
     private async Task<PlaceDto?> ResolvePlaceAsync(string text, CancellationToken ct)
     {
         var cities = await db.Cities.Find(FilterDefinition<City>.Empty).SortBy(c => c.SortOrder).ToListAsync(ct);
+        var t = Compact(text);
         City? best = null;
         var bestScore = 0;
         foreach (var city in cities)
         {
             var names = new List<string> { Text.Normalize(city.Name), city.Id.Replace('-', ' ') };
             if (CityAliases.TryGetValue(city.Id, out var aliases)) names.AddRange(aliases);
-            var score = names.Max(n =>
-                n == text ? 4 :
-                n.StartsWith(text, StringComparison.Ordinal) ? 3 :
-                text.Contains(n, StringComparison.Ordinal) ? 2 :   // vd. "khach san da nang"
-                n.Contains(text, StringComparison.Ordinal) ? 1 : 0);
+            var score = names.Select(Compact).Max(n =>
+                n == t ? 4 :
+                n.StartsWith(t, StringComparison.Ordinal) ? 3 :
+                t.Contains(n, StringComparison.Ordinal) ? 2 :   // vd. "khach san da nang"
+                n.Contains(t, StringComparison.Ordinal) ? 1 : 0);
             if (score > bestScore) (best, bestScore) = (city, score); // hòa điểm: giữ thành phố đứng trước
         }
         if (best is not null && (best.Lat != 0 || best.Lng != 0))
@@ -95,11 +101,13 @@ public sealed class HotelService(MongoDb db, InventoryService inventory, StaySer
         }
 
         var f = Builders<Hotel>.Filter;
-        var filter = f.Ne(h => h.Location, null);
-        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            filter &= f.Regex(h => h.SearchText, new BsonRegularExpression(Regex.Escape(word)));
-        }
+        // Khớp từng từ ở bất kỳ đâu ("garden lantern"), hoặc khớp liền bỏ qua dấu cách ("pinehill" → "pine hill").
+        var allWords = text.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(w => f.Regex(h => h.SearchText, new BsonRegularExpression(Regex.Escape(w))))
+            .Aggregate(f.Empty, (acc, w) => acc & w);
+        var spaceless = f.Regex(h => h.SearchText,
+            new BsonRegularExpression(string.Join(@"\s*", t.Select(ch => Regex.Escape(ch.ToString())))));
+        var filter = f.Ne(h => h.Location, null) & (allWords | spaceless);
         var hotel = await db.Hotels.Find(filter).SortByDescending(h => h.Rating).FirstOrDefaultAsync(ct);
         if (hotel?.Location is null) return null;
         var p = hotel.Location.Coordinates;

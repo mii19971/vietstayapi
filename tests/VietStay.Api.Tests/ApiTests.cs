@@ -67,6 +67,14 @@ public sealed class CatalogTests(ApiFactory api)
 
     [Theory]
     [InlineData("sai gon", "city", "ho-chi-minh", new[] { "hcm-district3-boutique", "hcm-saigon-skyline" })]
+    [InlineData("saigon", "city", "ho-chi-minh", new[] { "hcm-district3-boutique", "hcm-saigon-skyline" })]
+    [InlineData("danang", "city", "da-nang", new[] { "dn-han-river-view", "dn-my-khe-ocean" })]
+    [InlineData("DaNang", "city", "da-nang", new[] { "dn-han-river-view", "dn-my-khe-ocean" })]
+    [InlineData("Đà Nẵng", "city", "da-nang", new[] { "dn-han-river-view", "dn-my-khe-ocean" })]
+    [InlineData("hoian", "city", "hoi-an", new[] { "ha-lantern-garden" })]
+    [InlineData("nhatrang", "city", "nha-trang", new[] { "nt-coral-bay" })]
+    [InlineData("hochiminh", "city", "ho-chi-minh", new[] { "hcm-district3-boutique", "hcm-saigon-skyline" })]
+    [InlineData("pinehill", "hotel", "dl-pine-hill", new[] { "dl-pine-hill" })]
     [InlineData("pine hill", "hotel", "dl-pine-hill", new[] { "dl-pine-hill" })]
     [InlineData("khach san hue", "city", "hue", new[] { "hue-imperial-garden", "hue-perfume-river" })]
     public async Task Suggest_understands_aliases_and_hotel_names(string q, string type, string placeId, string[] expected)
