@@ -36,6 +36,13 @@ public static class SeedData
         new() { Id = "phu-quoc", Name = "Phú Quốc", Image = U("photo-1540541338287-41700207dee6", 600) },
         new() { Id = "da-lat", Name = "Đà Lạt", Image = U("photo-1555921015-5532091f6026", 600) },
         new() { Id = "sa-pa", Name = "Sa Pa", Image = U("photo-1528127269322-539801943592", 600) },
+        // Ảnh tạm (dùng lại ảnh khách sạn đã kiểm tra) — thay bằng ảnh thật của từng thành phố khi có.
+        new() { Id = "hue", Name = "Huế", Image = HotelImages[1] },
+        new() { Id = "ha-long", Name = "Hạ Long", Image = HotelImages[3] },
+        new() { Id = "vung-tau", Name = "Vũng Tàu", Image = HotelImages[4] },
+        new() { Id = "quy-nhon", Name = "Quy Nhơn", Image = HotelImages[0] },
+        new() { Id = "ninh-binh", Name = "Ninh Bình", Image = HotelImages[6] },
+        new() { Id = "can-tho", Name = "Cần Thơ", Image = HotelImages[2] },
     ];
 
     private static readonly (string Author, double Rating, string Comment)[] ReviewPool =
@@ -87,6 +94,27 @@ public static class SeedData
         new("sp-cloud-terrace", "Cloud Terrace Sa Pa", "sa-pa", "18 Mường Hoa, Sa Pa, Lào Cai", 4, 9.0, 488,
             "Phòng kính nhìn thẳng ra thung lũng Mường Hoa và ruộng bậc thang, có bể sục nước nóng ngoài trời.",
             ["wifi", "spa", "restaurant", "breakfast", "parking"], 1_450_000),
+        new("hue-perfume-river", "Perfume River Heritage", "hue", "15 Lê Lợi, Vĩnh Ninh, Huế", 4, 9.0, 820,
+            "Khách sạn bên bờ sông Hương, đi bộ ra cầu Trường Tiền; có thuyền rồng ngắm hoàng hôn và ẩm thực cung đình.",
+            ["wifi", "pool", "restaurant", "breakfast", "ac", "airport"], 1_200_000),
+        new("hue-imperial-garden", "Imperial Garden Homestay", "hue", "42 Đặng Thái Thân, Phú Hậu, Huế", 3, 8.7, 410,
+            "Nhà vườn kiểu Huế yên tĩnh, gần Đại Nội, chủ nhà thân thiện và bữa sáng bún bò tự nấu.",
+            ["wifi", "breakfast", "parking", "pet"], 590_000),
+        new("hl-bay-pearl", "Bay Pearl Hạ Long", "ha-long", "8 Hạ Long, Bãi Cháy, Hạ Long", 5, 9.2, 1340,
+            "Phòng hướng vịnh Hạ Long, hồ bơi vô cực và bến du thuyền riêng đưa khách tham quan vịnh.",
+            ["wifi", "pool", "spa", "gym", "restaurant", "beach", "breakfast", "ac", "airport"], 2_400_000),
+        new("vt-back-beach", "Back Beach Hotel Vũng Tàu", "vung-tau", "120 Thùy Vân, Phường 2, Vũng Tàu", 4, 8.5, 960,
+            "Ngay trước Bãi Sau, hồ bơi ngoài trời và nhà hàng hải sản; cách TP. Hồ Chí Minh khoảng 2 giờ.",
+            ["wifi", "pool", "restaurant", "beach", "breakfast", "ac", "parking"], 1_050_000),
+        new("qn-ky-co-retreat", "Ky Co Retreat Quy Nhơn", "quy-nhon", "56 An Dương Vương, Nguyễn Văn Cừ, Quy Nhơn", 4, 9.1, 540,
+            "Resort nhỏ bên biển Quy Nhơn, tổ chức tour Kỳ Co – Eo Gió và lặn ngắm san hô.",
+            ["wifi", "pool", "restaurant", "beach", "breakfast", "ac"], 1_300_000),
+        new("nb-tam-coc-lodge", "Tam Coc Rice Field Lodge", "ninh-binh", "Thôn Văn Lâm, Ninh Hải, Hoa Lư, Ninh Bình", 3, 9.3, 690,
+            "Bungalow giữa cánh đồng lúa Tam Cốc, núi đá vôi bao quanh, miễn phí xe đạp đi Hang Múa.",
+            ["wifi", "pool", "breakfast", "restaurant", "parking"], 850_000),
+        new("ct-mekong-riverside", "Mekong Riverside Cần Thơ", "can-tho", "2 Hai Bà Trưng, Tân An, Ninh Kiều, Cần Thơ", 4, 8.8, 720,
+            "Nhìn ra bến Ninh Kiều, gần chợ nổi Cái Răng; có tour thuyền sáng sớm và lớp học làm bánh dân gian.",
+            ["wifi", "pool", "gym", "restaurant", "breakfast", "ac", "airport"], 1_150_000),
     ];
 
     private static long Round10k(double v) => (long)Math.Round(v / 10_000, MidpointRounding.AwayFromZero) * 10_000;

@@ -97,7 +97,20 @@ public sealed class MongoInitializer(MongoDb db, IOptions<MongoOptions> options,
 {
     public async Task StartAsync(CancellationToken ct)
     {
-        await MongoSetup.CreateIndexesAsync(db, ct);
+        try
+        {
+            await MongoSetup.CreateIndexesAsync(db, ct);
+        }
+        catch (Exception ex) when (ex is MongoAuthenticationException or MongoCommandException { Code: 13 or 18 })
+        {
+            // 13 = Unauthorized (thiếu tài khoản hoặc không đủ quyền), 18 = AuthenticationFailed (sai mật khẩu).
+            throw new InvalidOperationException(
+                $"MongoDB từ chối truy cập database '{options.Value.Database}': {ex.Message} " +
+                "Hãy đặt tài khoản vào Mongo:ConnectionString, dạng mongodb://<user>:<password>@<host>:27017/?authSource=admin, " +
+                "qua user-secrets hoặc biến môi trường Mongo__ConnectionString (đừng ghi mật khẩu vào appsettings.json). " +
+                "User cần có quyền readWrite trên database này.",
+                ex);
+        }
         if (options.Value.Seed)
         {
             await SeedData.UpsertAsync(db, ct);

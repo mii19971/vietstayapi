@@ -15,7 +15,7 @@ public sealed class CatalogTests(ApiFactory api)
     public async Task Cities_are_seeded_in_order()
     {
         var cities = await _client.GetFromJsonAsync<List<CityDto>>("/api/cities", ApiFactory.Json);
-        Assert.Equal(8, cities!.Count);
+        Assert.Equal(14, cities!.Count);
         Assert.Equal("Hà Nội", cities[0].Name);
     }
 
@@ -32,8 +32,8 @@ public sealed class CatalogTests(ApiFactory api)
     {
         var r = await _client.GetFromJsonAsync<SearchResultDto>(
             "/api/hotels/search?minStars=5&amenities=beach,spa&sort=price-asc", ApiFactory.Json);
-        Assert.Equal(["dn-my-khe-ocean", "pq-sunset-sanctuary"], r!.Items.Select(h => h.Id));
-        Assert.True(r.Items[0].MinPrice <= r.Items[1].MinPrice);
+        Assert.Equal(["hl-bay-pearl", "dn-my-khe-ocean", "pq-sunset-sanctuary"], r!.Items.Select(h => h.Id));
+        Assert.True(r.Items[0].MinPrice <= r.Items[1].MinPrice && r.Items[1].MinPrice <= r.Items[2].MinPrice);
     }
 
     [Fact]
@@ -65,6 +65,18 @@ public sealed class CatalogTests(ApiFactory api)
         var res = await _client.GetAsync("/api/hotels/khong-ton-tai");
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
         Assert.Equal("application/problem+json", res.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Theory]
+    [InlineData("http://localhost:8082", true)]   // Expo đổi cổng khi 8081 bận
+    [InlineData("http://127.0.0.1:19006", true)]
+    [InlineData("https://evil.example.com", false)]
+    public async Task Development_cors_allows_any_localhost_port(string origin, bool allowed)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, "/api/cities");
+        req.Headers.Add("Origin", origin);
+        var res = await _client.SendAsync(req);
+        Assert.Equal(allowed, res.Headers.TryGetValues("Access-Control-Allow-Origin", out var v) && v.Single() == origin);
     }
 
     [Fact]

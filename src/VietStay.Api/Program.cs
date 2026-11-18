@@ -66,8 +66,13 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks().AddCheck<MongoHealthCheck>("mongo");
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [];
+var allowAnyLocalhost = builder.Environment.IsDevelopment();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
-    p.WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [])
+    p.SetIsOriginAllowed(origin =>
+        corsOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)
+        // Development: chấp nhận mọi cổng trên localhost (Expo tự đổi sang 8082, 8083... khi 8081 bận).
+        || (allowAnyLocalhost && Uri.TryCreate(origin, UriKind.Absolute, out var uri) && uri.IsLoopback))
      .AllowAnyHeader()
      .AllowAnyMethod()));
 builder.Services.AddRateLimiter(o =>
