@@ -19,6 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Cấu hình ----------
 builder.Services.AddOptions<MongoOptions>().BindConfiguration(MongoOptions.Section);
+builder.Services.AddOptions<HbeOptions>().BindConfiguration(HbeOptions.Section);
 builder.Services.AddOptions<BookingOptions>().BindConfiguration(BookingOptions.Section);
 builder.Services.AddOptions<JwtOptions>().BindConfiguration(JwtOptions.Section)
     .Validate(o => Encoding.UTF8.GetByteCount(o.SigningKey) >= 32, "Jwt:SigningKey phải dài tối thiểu 32 byte.")
@@ -29,15 +30,17 @@ MongoSetup.ConfigureSerialization();
 builder.Services.AddSingleton<IMongoClient>(sp =>
     new MongoClient(sp.GetRequiredService<IOptions<MongoOptions>>().Value.ConnectionString));
 builder.Services.AddSingleton<MongoDb>();
+builder.Services.AddSingleton<HbeDb>(); // nội dung khách sạn — chỉ đọc
 builder.Services.AddHostedService<MongoInitializer>();
 
 // ---------- Dịch vụ nghiệp vụ ----------
+builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<AppClock>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddSingleton<CatalogService>();
+builder.Services.AddHostedService<CatalogWarmUp>();
 builder.Services.AddScoped<StayService>();
-builder.Services.AddScoped<InventoryService>();
-builder.Services.AddScoped<HotelService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<AccountService>();
 

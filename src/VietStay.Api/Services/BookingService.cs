@@ -1,19 +1,17 @@
 using System.Security.Cryptography;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using VietStay.Api.Contracts;
 using VietStay.Api.Data;
 using VietStay.Api.Domain;
+using VietStay.Api.Domain.Hbe;
 
 namespace VietStay.Api.Services;
 
-public sealed class BookingService(
-    MongoDb db,
-    HotelService hotels,
-    InventoryService inventory,
-    StayService stays,
-    AppClock clock,
-    IOptions<BookingOptions> options)
+/// <summary>
+/// Yêu cầu đặt phòng. Khách sạn/phòng lấy từ hbe; hbe không có giá và số phòng trống nên đơn mới ở trạng thái
+/// <see cref="BookingStatus.Pending"/> (chờ khách sạn xác nhận), các trường giá để trống.
+/// </summary>
+public sealed class BookingService(MongoDb db, CatalogService catalog, StayService stays, AppClock clock)
 {
     private const string CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -36,56 +34,41 @@ public sealed class BookingService(
         }
         v.ThrowIfInvalid();
 
-        var hotel = await hotels.GetHotelAsync(req.HotelId!, ct);
-        var room = hotel.Rooms.FirstOrDefault(r => r.Id == req.RoomId)
-                   ?? throw ApiException.NotFound("Không tìm thấy loại phòng.");
-        if (!InventoryService.Fits(room, stay!))
+        var hotel = await catalog.GetPropertyAsync(req.HotelId!.Trim(), Lang.Vi, ct);
+        var roomEntry = (hotel.Rooms ?? []).FirstOrDefault(kv => (kv.Value.Id ?? kv.Key) == req.RoomId!.Trim());
+        if (roomEntry.Value is null) throw ApiException.NotFound("Không tìm thấy loại phòng.");
+        var room = HbeMapping.ToDto(roomEntry.Key, roomEntry.Value);
+        if (room.MaxGuests is > 0 and var max && max * stay!.Rooms < stay.Guests)
         {
             throw new ApiException(StatusCodes.Status400BadRequest,
-                $"{room.Name} chứa tối đa {room.MaxGuests * stay!.Rooms} khách cho {stay.Rooms} phòng.");
+                $"{room.Name} chứa tối đa {max * stay.Rooms} khách cho {stay.Rooms} phòng.");
         }
 
-        var subtotal = room.Price * stay!.Nights * stay.Rooms;
-        var taxes = (long)Math.Round(subtotal * options.Value.TaxRate, MidpointRounding.AwayFromZero);
         var booking = new Booking
         {
             UserId = userId,
-            HotelId = hotel.Id,
-            HotelName = hotel.Name,
-            HotelImage = hotel.Images.FirstOrDefault() ?? "",
-            City = hotel.City,
-            Address = hotel.Address,
+            HotelId = hotel.PropertyId,
+            HotelName = (hotel.Name ?? "").Trim(),
+            HotelImage = hotel.HeroImage() is { Length: > 0 } hero ? hero : room.Images.FirstOrDefault()?.Url ?? "",
+            City = hotel.Address?.City ?? "",
+            Address = hotel.Address(),
             RoomId = room.Id,
             RoomName = room.Name,
-            FreeCancellation = room.FreeCancellation,
-            CheckIn = stay.CheckIn,
+            CheckIn = stay!.CheckIn,
             CheckOut = stay.CheckOut,
             Nights = stay.Nights,
             Guests = stay.Guests,
             Rooms = stay.Rooms,
-            PricePerNight = room.Price,
-            Subtotal = subtotal,
-            Taxes = taxes,
-            Total = subtotal + taxes,
             GuestName = req.GuestName!.Trim(),
             GuestEmail = req.GuestEmail!.Trim(),
             GuestPhone = Text.CleanPhone(req.GuestPhone!),
             Note = string.IsNullOrWhiteSpace(req.Note) ? null : req.Note.Trim(),
             PaymentMethod = req.PaymentMethod ?? PaymentMethod.PayAtHotel,
-            Status = BookingStatus.Confirmed,
+            Status = BookingStatus.Pending,
             CreatedAt = clock.UtcNow,
         };
 
-        await inventory.ReserveAsync(hotel, room, stay, ct);
-        try
-        {
-            await InsertWithUniqueCodeAsync(booking, ct);
-        }
-        catch
-        {
-            await inventory.ReleaseAsync(room.Id, stay, stay.Rooms);
-            throw;
-        }
+        await InsertWithUniqueCodeAsync(booking, ct);
         return booking.ToDto(clock.Today);
     }
 
@@ -106,15 +89,12 @@ public sealed class BookingService(
         if (existing.Status == BookingStatus.Cancelled) throw ApiException.Conflict("Đơn đặt phòng đã được hủy trước đó.");
         if (existing.CheckIn <= today) throw ApiException.Conflict("Không thể hủy khi đã đến ngày nhận phòng.");
 
-        // Cập nhật có điều kiện để hai request hủy đồng thời không hoàn phòng hai lần.
+        // Cập nhật có điều kiện để hai request hủy đồng thời chỉ một request thành công.
         var cancelled = await db.Bookings.FindOneAndUpdateAsync(
-            b => b.Id == existing.Id && b.Status == BookingStatus.Confirmed,
+            b => b.Id == existing.Id && b.Status != BookingStatus.Cancelled,
             Builders<Booking>.Update.Set(b => b.Status, BookingStatus.Cancelled).Set(b => b.CancelledAt, clock.UtcNow),
             new FindOneAndUpdateOptions<Booking> { ReturnDocument = ReturnDocument.After },
             ct) ?? throw ApiException.Conflict("Đơn đặt phòng đã được hủy trước đó.");
-
-        await inventory.ReleaseAsync(cancelled.RoomId,
-            new Stay(cancelled.CheckIn, cancelled.CheckOut, cancelled.Guests, cancelled.Rooms), cancelled.Rooms);
         return cancelled.ToDto(today);
     }
 

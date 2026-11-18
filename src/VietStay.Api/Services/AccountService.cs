@@ -8,12 +8,13 @@ using MongoDB.Driver;
 using VietStay.Api.Contracts;
 using VietStay.Api.Data;
 using VietStay.Api.Domain;
+using VietStay.Api.Domain.Hbe;
 
 namespace VietStay.Api.Services;
 
 public sealed class AccountService(
     MongoDb db,
-    HotelService hotels,
+    CatalogService catalog,
     IPasswordHasher<User> hasher,
     IOptions<JwtOptions> jwt,
     AppClock clock)
@@ -84,12 +85,16 @@ public sealed class AccountService(
         return user.ToDto();
     }
 
-    public async Task<IReadOnlyList<HotelSummaryDto>> GetFavoritesAsync(string userId, CancellationToken ct) =>
-        await hotels.GetByIdsAsync((await GetUserAsync(userId, ct)).Favorites, ct);
+    /// <summary>Mới thêm trước. Khách sạn không còn trong hbe (vd. id dữ liệu mẫu cũ) bị bỏ qua.</summary>
+    public async Task<IReadOnlyList<HotelSummaryDto>> GetFavoritesAsync(string userId, Lang lang, CancellationToken ct)
+    {
+        var favorites = (await GetUserAsync(userId, ct)).Favorites;
+        return await catalog.GetByIdsAsync(Enumerable.Reverse(favorites).ToList(), lang, ct);
+    }
 
     public async Task AddFavoriteAsync(string userId, string hotelId, CancellationToken ct)
     {
-        await hotels.GetHotelAsync(hotelId, ct); // 404 nếu khách sạn không tồn tại
+        await catalog.EnsureHotelExistsAsync(hotelId, ct); // 404 nếu khách sạn không tồn tại
         await db.Users.UpdateOneAsync(u => u.Id == userId, Builders<User>.Update.AddToSet(u => u.Favorites, hotelId), cancellationToken: ct);
     }
 

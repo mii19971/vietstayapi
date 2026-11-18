@@ -12,29 +12,42 @@ public static class Endpoints
     {
         var api = app.MapGroup("/api");
 
-        // ---------- Danh mục (công khai) ----------
+        // ---------- Danh mục (công khai, đọc từ database hbe; ?lang=vi|en, mặc định vi) ----------
         var catalog = api.MapGroup("").WithTags("Catalog");
 
-        catalog.MapGet("/cities", (HotelService s, CancellationToken ct) => s.GetCitiesAsync(ct))
-            .WithSummary("Danh sách điểm đến");
+        catalog.MapGet("/countries", (CatalogService s, CancellationToken ct, string? lang) =>
+                s.GetCountriesAsync(Langs.Parse(lang), ct))
+            .WithSummary("Danh sách quốc gia (collection country)");
 
-        catalog.MapGet("/hotels/featured", (HotelService s, CancellationToken ct, int limit = 6) => s.GetFeaturedAsync(limit, ct))
-            .WithSummary("Khách sạn được đánh giá cao nhất");
+        catalog.MapGet("/destinations", (CatalogService s, CancellationToken ct, string? lang) =>
+                s.GetDestinationsAsync(Langs.Parse(lang), ct))
+            .WithSummary("Điểm đến phổ biến")
+            .WithDescription("Các vùng cấu hình ở Hbe:Destinations; id = region_id, dùng cho /api/hotels/search?regionId=.");
 
-        catalog.MapGet("/hotels/search", ([AsParameters] SearchQuery q, HotelService s, CancellationToken ct) => s.SearchAsync(q, ct))
-            .WithSummary("Tìm khách sạn còn phòng")
-            .WithDescription("Tìm không dấu theo tên/thành phố/địa chỉ, lọc theo giá, sao, điểm, tiện nghi; chỉ trả về khách sạn còn phòng phù hợp số khách cho khoảng ngày.");
+        catalog.MapGet("/places/suggest", ([AsParameters] SuggestQuery q, CatalogService s, CancellationToken ct) => s.SuggestAsync(q, ct))
+            .WithSummary("Gợi ý khi gõ ô tìm kiếm (collection places)")
+            .WithDescription("Khớp mọi từ (không dấu cũng được, theo từ hoàn chỉnh) với tên vùng/khách sạn. Kết quả: type = region (id = region_id) hoặc hotel (id = id khách sạn). Ưu tiên Việt Nam, vùng trước khách sạn.");
 
-        catalog.MapGet("/hotels/suggest", ([AsParameters] SuggestQuery q, HotelService s, CancellationToken ct) => s.SuggestAsync(q, ct))
-            .WithSummary("Gợi ý khi gõ ô tìm kiếm")
-            .WithDescription("Nhận diện địa điểm từ từ khóa (thành phố hoặc tên khách sạn, không dấu cũng được), trả về tối đa `limit` (mặc định 20) khách sạn gần nhất còn phòng trong bán kính `radiusKm` (mặc định 20 km), sắp xếp theo giá thấp → cao.");
+        catalog.MapGet("/regions/{id}", (string id, CatalogService s, CancellationToken ct, string? lang) =>
+                s.GetRegionAsync(id, Langs.Parse(lang), ct))
+            .WithSummary("Thông tin vùng (collection epa_regions)");
 
-        catalog.MapGet("/hotels/{id}", (string id, HotelService s, CancellationToken ct) => s.GetDetailAsync(id, ct))
-            .WithSummary("Chi tiết khách sạn");
+        catalog.MapGet("/hotels/search", ([AsParameters] SearchQuery q, CatalogService s, CancellationToken ct) => s.SearchAsync(q, ct))
+            .WithSummary("Tìm khách sạn theo vùng hoặc từ khóa")
+            .WithDescription("Cần `regionId` hoặc `q`. Lọc `minStars` (0–5), `minRating` (thang 10), `amenities` (wifi,pool,spa,gym,restaurant,parking,breakfast,airport,beach,pet); `sort` = recommended | rating | stars | name.");
 
-        catalog.MapGet("/hotels/{id}/rooms", (string id, [AsParameters] StayQuery q, HotelService s, CancellationToken ct) =>
-                s.GetRoomOffersAsync(id, q, ct))
-            .WithSummary("Phòng trống và giá theo khoảng ngày");
+        catalog.MapGet("/hotels/featured", (CatalogService s, CancellationToken ct, int? limit, string? lang) =>
+                s.GetFeaturedAsync(limit ?? 6, Langs.Parse(lang), ct))
+            .WithSummary("Khách sạn được đánh giá cao ở các điểm đến phổ biến");
+
+        catalog.MapGet("/hotels/{id}", (string id, CatalogService s, CancellationToken ct, string? lang) =>
+                s.GetDetailAsync(id, Langs.Parse(lang), ct))
+            .WithSummary("Chi tiết khách sạn (collection vi_eap_properties / en_eap_properties)");
+
+        catalog.MapGet("/references", (CatalogService s, CancellationToken ct, string? type, string? ids, string? lang) =>
+                s.GetReferencesAsync(type, ids, Langs.Parse(lang), ct))
+            .WithSummary("Bảng tra cứu (collection references)")
+            .WithDescription("`type` bắt buộc, vd. amenities_property, amenities_rooms, attributes_pets, categories, room_views, bed_groups. `ids` = danh sách epa_id phân tách bằng dấu phẩy (tùy chọn).");
 
         // ---------- Tài khoản ----------
         var auth = api.MapGroup("/auth").WithTags("Auth").RequireRateLimiting(AuthRateLimit);
@@ -55,7 +68,8 @@ public static class Endpoints
                 s.UpdateProfileAsync(u.UserId(), req, ct))
             .WithSummary("Cập nhật họ tên / số điện thoại");
 
-        me.MapGet("/favorites", (ClaimsPrincipal u, AccountService s, CancellationToken ct) => s.GetFavoritesAsync(u.UserId(), ct))
+        me.MapGet("/favorites", (ClaimsPrincipal u, AccountService s, CancellationToken ct, string? lang) =>
+                s.GetFavoritesAsync(u.UserId(), Langs.Parse(lang), ct))
             .WithSummary("Khách sạn yêu thích");
 
         me.MapPut("/favorites/{hotelId}", async (string hotelId, ClaimsPrincipal u, AccountService s, CancellationToken ct) =>
@@ -80,7 +94,7 @@ public static class Endpoints
                 var booking = await s.CreateAsync(u.UserId(), req, ct);
                 return TypedResults.Created($"/api/bookings/{booking.Id}", booking);
             })
-            .WithSummary("Đặt phòng");
+            .WithSummary("Gửi yêu cầu đặt phòng (trạng thái pending, chưa có giá)");
 
         bookings.MapGet("", (ClaimsPrincipal u, BookingService s, CancellationToken ct) => s.ListAsync(u.UserId(), ct))
             .WithSummary("Đơn đặt phòng của tôi");

@@ -72,7 +72,46 @@ public static partial class Text
         return sb.ToString().Replace('đ', 'd').Replace('Đ', 'D').ToLowerInvariant().Trim();
     }
 
+    /// <summary>
+    /// HTML trong hbe (mô tả, chính sách) → văn bản thuần cho app: &lt;br&gt;, &lt;p&gt;, &lt;li&gt; thành xuống dòng
+    /// (mục danh sách có "• "), bỏ thẻ, giải mã entity, gộp khoảng trắng.
+    /// </summary>
+    public static string HtmlToText(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return "";
+        var s = BreakRegex().Replace(html, "\n");
+        s = ListItemRegex().Replace(s, "\n• ");
+        s = BlockEndRegex().Replace(s, "\n");
+        s = TagRegex().Replace(s, "");
+        s = System.Net.WebUtility.HtmlDecode(s).Replace(' ', ' ');
+        s = SpacesRegex().Replace(s, " ");
+        s = NewlinesRegex().Replace(s, "\n");
+        return s.Trim().Normalize(NormalizationForm.FormC);
+    }
+
+    /// <summary>Số lưu dạng chuỗi trong hbe ("4.5", "26.0"). Không đọc được → null.</summary>
+    public static double? ParseDouble(string? s) =>
+        double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && double.IsFinite(d) ? d : null;
+
     public static bool IsEmail(string s) => EmailRegex().IsMatch(s.Trim());
+
+    [GeneratedRegex(@"<\s*br\s*/?\s*>", RegexOptions.IgnoreCase)]
+    private static partial Regex BreakRegex();
+
+    [GeneratedRegex(@"<\s*li\b[^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex ListItemRegex();
+
+    [GeneratedRegex(@"<\s*/\s*(p|div|ul|ol|li|h\d)\s*>|<\s*p\b[^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex BlockEndRegex();
+
+    [GeneratedRegex(@"<[^>]*>")]
+    private static partial Regex TagRegex();
+
+    [GeneratedRegex(@"[ \t\r\f\v]+")]
+    private static partial Regex SpacesRegex();
+
+    [GeneratedRegex(@"\s*\n\s*")]
+    private static partial Regex NewlinesRegex();
 
     public static bool IsPhone(string s) => PhoneRegex().IsMatch(CleanPhone(s));
 
@@ -93,6 +132,38 @@ public sealed class AppClock(TimeProvider time, IOptions<BookingOptions> options
     public DateTime UtcNow => time.GetUtcNow().UtcDateTime;
 
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), _zone).DateTime);
+}
+
+public static class Langs
+{
+    /// <summary>"vi" (mặc định) hoặc "en".</summary>
+    public static VietStay.Api.Domain.Hbe.Lang Parse(string? lang, Validation v)
+    {
+        switch (lang?.Trim().ToLowerInvariant())
+        {
+            case null or "" or "vi": return VietStay.Api.Domain.Hbe.Lang.Vi;
+            case "en": return VietStay.Api.Domain.Hbe.Lang.En;
+            default:
+                v.Check(false, "lang", "Ngôn ngữ hợp lệ: vi, en.");
+                return VietStay.Api.Domain.Hbe.Lang.Vi;
+        }
+    }
+
+    public static VietStay.Api.Domain.Hbe.Lang Parse(string? lang)
+    {
+        var v = new Validation();
+        var result = Parse(lang, v);
+        v.ThrowIfInvalid();
+        return result;
+    }
+
+    /// <summary>Chọn tên theo ngôn ngữ, thiếu thì dùng tên ngôn ngữ kia.</summary>
+    public static string Pick(this VietStay.Api.Domain.Hbe.Lang lang, string? vi, string? en)
+    {
+        // Một số tên trong hbe lưu dạng tổ hợp (NFD, vd. "Việt Nam") → chuẩn hóa NFC.
+        static string? N(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim().Normalize(NormalizationForm.FormC);
+        return (lang == VietStay.Api.Domain.Hbe.Lang.En ? N(en) ?? N(vi) : N(vi) ?? N(en)) ?? "";
+    }
 }
 
 public static class UserExtensions
