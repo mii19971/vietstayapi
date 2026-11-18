@@ -41,6 +41,18 @@ public sealed record SearchQuery(
     // recommended | price-asc | price-desc | rating
     string? Sort, int? Page, int? PageSize);
 
+/// <summary>Gợi ý khi gõ ô tìm kiếm. radiusKm: chỉ lấy khách sạn trong bán kính này quanh địa điểm.</summary>
+public sealed record SuggestQuery(
+    string? Q, string? CheckIn, string? CheckOut, int? Guests, int? Rooms, int? Limit, double? RadiusKm);
+
+/// <summary>Địa điểm hiểu được từ từ khóa: "city" (trung tâm thành phố) hoặc "hotel" (vị trí khách sạn).</summary>
+public sealed record PlaceDto(string Type, string Id, string Name, double Lat, double Lng);
+
+public sealed record HotelSuggestionDto(HotelSummaryDto Hotel, double DistanceKm);
+
+/// <summary>Place = null khi không nhận ra địa điểm nào. Items sắp theo giá thấp → cao.</summary>
+public sealed record SuggestResultDto(PlaceDto? Place, IReadOnlyList<HotelSuggestionDto> Items, double RadiusKm);
+
 // ---------- Tài khoản ----------
 
 public sealed record RegisterRequest(string? Name, string? Email, string? Phone, string? Password);

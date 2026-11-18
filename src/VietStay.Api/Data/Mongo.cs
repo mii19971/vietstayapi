@@ -61,6 +61,8 @@ public static class MongoSetup
         [
             new CreateIndexModel<Hotel>(Builders<Hotel>.IndexKeys.Ascending(h => h.CityId)),
             new CreateIndexModel<Hotel>(Builders<Hotel>.IndexKeys.Descending(h => h.Rating)),
+            // Bắt buộc cho truy vấn $nearSphere (gợi ý khách sạn gần nhất).
+            new CreateIndexModel<Hotel>(Builders<Hotel>.IndexKeys.Geo2DSphere(h => h.Location)),
         ], ct);
 
         await db.RoomNights.Indexes.CreateOneAsync(

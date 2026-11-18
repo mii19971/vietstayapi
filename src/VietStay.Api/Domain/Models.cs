@@ -1,7 +1,27 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver.GeoJsonObjectModel;
 
 namespace VietStay.Api.Domain;
+
+public static class Geo
+{
+    /// <summary>Điểm GeoJSON (MongoDB lưu theo thứ tự kinh độ, vĩ độ).</summary>
+    public static GeoJsonPoint<GeoJson2DGeographicCoordinates> Point(double lat, double lng) =>
+        new(new GeoJson2DGeographicCoordinates(lng, lat));
+
+    /// <summary>Khoảng cách đường chim bay (km) theo công thức haversine.</summary>
+    public static double DistanceKm(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double R = 6371.0;
+        static double Rad(double d) => d * Math.PI / 180;
+        var dLat = Rad(lat2 - lat1);
+        var dLng = Rad(lng2 - lng1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(Rad(lat1)) * Math.Cos(Rad(lat2)) * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+        return 2 * R * Math.Asin(Math.Sqrt(a));
+    }
+}
 
 public static class Amenities
 {
@@ -17,6 +37,9 @@ public sealed class City
     public string Name { get; set; } = "";
     public string Image { get; set; } = "";
     public int SortOrder { get; set; }
+    /// <summary>Tọa độ trung tâm thành phố.</summary>
+    public double Lat { get; set; }
+    public double Lng { get; set; }
 }
 
 public sealed class Hotel
@@ -36,6 +59,8 @@ public sealed class Hotel
     public List<Review> Reviews { get; set; } = [];
     /// <summary>Tên + thành phố + địa chỉ đã bỏ dấu, chữ thường — phục vụ tìm kiếm không dấu.</summary>
     public string SearchText { get; set; } = "";
+    /// <summary>Vị trí khách sạn (index 2dsphere) — dùng cho gợi ý "gần nhất".</summary>
+    public GeoJsonPoint<GeoJson2DGeographicCoordinates>? Location { get; set; }
 }
 
 public sealed class Room

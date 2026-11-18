@@ -37,6 +37,57 @@ public sealed class CatalogTests(ApiFactory api)
     }
 
     [Fact]
+    public async Task Suggest_returns_nearby_hotels_sorted_by_price()
+    {
+        var r = await _client.GetFromJsonAsync<SuggestResultDto>("/api/hotels/suggest?q=da%20nang", ApiFactory.Json);
+        Assert.Equal("city", r!.Place!.Type);
+        Assert.Equal("da-nang", r.Place.Id);
+        // Bán kính mặc định 20 km: chỉ hai khách sạn Đà Nẵng; Hội An (~24 km) nằm ngoài.
+        Assert.Equal(20, r.RadiusKm);
+        Assert.Equal(["dn-han-river-view", "dn-my-khe-ocean"], r.Items.Select(i => i.Hotel.Id));
+        Assert.Equal(r.Items.Select(i => i.Hotel.MinPrice).Order(), r.Items.Select(i => i.Hotel.MinPrice));
+        Assert.All(r.Items, i => Assert.InRange(i.DistanceKm, 0, 20));
+    }
+
+    [Fact]
+    public async Task Suggest_radius_can_be_widened()
+    {
+        // radiusKm=50 → thêm Lantern Garden (Hội An, ~24 km), vẫn sắp theo giá.
+        var r = await _client.GetFromJsonAsync<SuggestResultDto>("/api/hotels/suggest?q=da%20nang&radiusKm=50", ApiFactory.Json);
+        Assert.Equal(["dn-han-river-view", "ha-lantern-garden", "dn-my-khe-ocean"], r!.Items.Select(i => i.Hotel.Id));
+    }
+
+    [Fact]
+    public async Task Suggest_limit_keeps_the_nearest_hotels()
+    {
+        // limit=1 → chỉ khách sạn gần trung tâm Đà Nẵng nhất (Han River ~2 km), dù không rẻ nhất vùng.
+        var r = await _client.GetFromJsonAsync<SuggestResultDto>("/api/hotels/suggest?q=da%20nang&limit=1", ApiFactory.Json);
+        Assert.Equal("dn-han-river-view", Assert.Single(r!.Items).Hotel.Id);
+    }
+
+    [Theory]
+    [InlineData("sai gon", "city", "ho-chi-minh", new[] { "hcm-district3-boutique", "hcm-saigon-skyline" })]
+    [InlineData("pine hill", "hotel", "dl-pine-hill", new[] { "dl-pine-hill" })]
+    [InlineData("khach san hue", "city", "hue", new[] { "hue-imperial-garden", "hue-perfume-river" })]
+    public async Task Suggest_understands_aliases_and_hotel_names(string q, string type, string placeId, string[] expected)
+    {
+        var r = await _client.GetFromJsonAsync<SuggestResultDto>($"/api/hotels/suggest?q={Uri.EscapeDataString(q)}", ApiFactory.Json);
+        Assert.Equal(type, r!.Place!.Type);
+        Assert.Equal(placeId, r.Place.Id);
+        Assert.Equal(expected, r.Items.Select(i => i.Hotel.Id));
+    }
+
+    [Theory]
+    [InlineData("xyz khong co")]
+    [InlineData("a")]
+    public async Task Suggest_returns_empty_when_place_unknown(string q)
+    {
+        var r = await _client.GetFromJsonAsync<SuggestResultDto>($"/api/hotels/suggest?q={Uri.EscapeDataString(q)}", ApiFactory.Json);
+        Assert.Null(r!.Place);
+        Assert.Empty(r.Items);
+    }
+
+    [Fact]
     public async Task Search_only_returns_hotels_with_rooms_big_enough()
     {
         // 4 khách / 1 phòng: chỉ phòng Gia đình (tối đa 4) phù hợp → minPrice = giá phòng Gia đình.

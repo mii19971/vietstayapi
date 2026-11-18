@@ -25,6 +25,10 @@ public static class Endpoints
             .WithSummary("Tìm khách sạn còn phòng")
             .WithDescription("Tìm không dấu theo tên/thành phố/địa chỉ, lọc theo giá, sao, điểm, tiện nghi; chỉ trả về khách sạn còn phòng phù hợp số khách cho khoảng ngày.");
 
+        catalog.MapGet("/hotels/suggest", ([AsParameters] SuggestQuery q, HotelService s, CancellationToken ct) => s.SuggestAsync(q, ct))
+            .WithSummary("Gợi ý khi gõ ô tìm kiếm")
+            .WithDescription("Nhận diện địa điểm từ từ khóa (thành phố hoặc tên khách sạn, không dấu cũng được), trả về tối đa `limit` (mặc định 20) khách sạn gần nhất còn phòng trong bán kính `radiusKm` (mặc định 20 km), sắp xếp theo giá thấp → cao.");
+
         catalog.MapGet("/hotels/{id}", (string id, HotelService s, CancellationToken ct) => s.GetDetailAsync(id, ct))
             .WithSummary("Chi tiết khách sạn");
 

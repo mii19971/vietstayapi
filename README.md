@@ -55,6 +55,7 @@ Ngày dạng `yyyy-MM-dd`. Lỗi trả về theo chuẩn `application/problem+js
 | GET | `/api/cities` | | Điểm đến |
 | GET | `/api/hotels/featured?limit=6` | | Khách sạn đánh giá cao nhất |
 | GET | `/api/hotels/search` | | Tìm khách sạn còn phòng (xem tham số bên dưới) |
+| GET | `/api/hotels/suggest?q=&checkIn&checkOut&guests&rooms&limit=20&radiusKm=20` | | Gợi ý khi gõ: tối đa `limit` khách sạn gần địa điểm nhất, còn phòng, sắp theo giá thấp → cao |
 | GET | `/api/hotels/{id}` | | Chi tiết khách sạn |
 | GET | `/api/hotels/{id}/rooms?checkIn&checkOut&guests&rooms` | | Phòng trống + giá theo khoảng ngày |
 | POST | `/api/auth/register` | | Đăng ký `{name,email,phone,password}` → `{token,expiresAt,user}` |
@@ -113,4 +114,8 @@ tests/VietStay.Api.Tests/  # Test tích hợp trên MongoDB tạm
   Có test đặt đồng thời 8 đơn cho 3 phòng → đúng 3 đơn thành công.
 - **Giá**: lưu VND dạng số nguyên (`long`); giá và thông tin khách sạn được chụp lại vào đơn tại thời điểm đặt.
 - **Tìm không dấu**: trường `searchText` lưu tên + thành phố + địa chỉ đã bỏ dấu.
+- **Gợi ý gần nhất** (`/api/hotels/suggest`): từ khóa được nhận diện thành địa điểm — thành phố (khớp tên, không dấu,
+  tên gọi khác như "sai gon", "hcm") hoặc tên khách sạn. Khách sạn lưu vị trí dạng GeoJSON (`location`, index `2dsphere`),
+  truy vấn `$nearSphere` lấy các khách sạn gần nhất trong `radiusKm`, bỏ khách sạn hết phòng, giữ tối đa `limit`,
+  rồi sắp theo giá thấp → cao. Tọa độ trong dữ liệu mẫu là gần đúng.
 - **Mật khẩu** băm bằng `PasswordHasher` của ASP.NET Core Identity (PBKDF2).

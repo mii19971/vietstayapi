@@ -28,22 +28,45 @@ public static class SeedData
 
     public static readonly City[] Cities =
     [
-        new() { Id = "ha-noi", Name = "Hà Nội", Image = U("photo-1509030450996-dd1a26dda07a", 600) },
-        new() { Id = "ho-chi-minh", Name = "TP. Hồ Chí Minh", Image = U("photo-1583417319070-4a69db38a482", 600) },
-        new() { Id = "da-nang", Name = "Đà Nẵng", Image = U("photo-1559592413-7cec4d0cae2b", 600) },
-        new() { Id = "hoi-an", Name = "Hội An", Image = U("photo-1557750255-c76072a7aad1", 600) },
-        new() { Id = "nha-trang", Name = "Nha Trang", Image = U("photo-1573270689103-d7a4e42b609a", 600) },
-        new() { Id = "phu-quoc", Name = "Phú Quốc", Image = U("photo-1540541338287-41700207dee6", 600) },
-        new() { Id = "da-lat", Name = "Đà Lạt", Image = U("photo-1555921015-5532091f6026", 600) },
-        new() { Id = "sa-pa", Name = "Sa Pa", Image = U("photo-1528127269322-539801943592", 600) },
+        new() { Id = "ha-noi", Name = "Hà Nội", Image = U("photo-1509030450996-dd1a26dda07a", 600), Lat = 21.0285, Lng = 105.8542 },
+        new() { Id = "ho-chi-minh", Name = "TP. Hồ Chí Minh", Image = U("photo-1583417319070-4a69db38a482", 600), Lat = 10.7769, Lng = 106.7009 },
+        new() { Id = "da-nang", Name = "Đà Nẵng", Image = U("photo-1559592413-7cec4d0cae2b", 600), Lat = 16.0544, Lng = 108.2022 },
+        new() { Id = "hoi-an", Name = "Hội An", Image = U("photo-1557750255-c76072a7aad1", 600), Lat = 15.8801, Lng = 108.3380 },
+        new() { Id = "nha-trang", Name = "Nha Trang", Image = U("photo-1573270689103-d7a4e42b609a", 600), Lat = 12.2388, Lng = 109.1967 },
+        new() { Id = "phu-quoc", Name = "Phú Quốc", Image = U("photo-1540541338287-41700207dee6", 600), Lat = 10.2899, Lng = 103.9840 },
+        new() { Id = "da-lat", Name = "Đà Lạt", Image = U("photo-1555921015-5532091f6026", 600), Lat = 11.9404, Lng = 108.4583 },
+        new() { Id = "sa-pa", Name = "Sa Pa", Image = U("photo-1528127269322-539801943592", 600), Lat = 22.3364, Lng = 103.8438 },
         // Ảnh tạm (dùng lại ảnh khách sạn đã kiểm tra) — thay bằng ảnh thật của từng thành phố khi có.
-        new() { Id = "hue", Name = "Huế", Image = HotelImages[1] },
-        new() { Id = "ha-long", Name = "Hạ Long", Image = HotelImages[3] },
-        new() { Id = "vung-tau", Name = "Vũng Tàu", Image = HotelImages[4] },
-        new() { Id = "quy-nhon", Name = "Quy Nhơn", Image = HotelImages[0] },
-        new() { Id = "ninh-binh", Name = "Ninh Bình", Image = HotelImages[6] },
-        new() { Id = "can-tho", Name = "Cần Thơ", Image = HotelImages[2] },
+        new() { Id = "hue", Name = "Huế", Image = HotelImages[1], Lat = 16.4637, Lng = 107.5909 },
+        new() { Id = "ha-long", Name = "Hạ Long", Image = HotelImages[3], Lat = 20.9517, Lng = 107.0810 },
+        new() { Id = "vung-tau", Name = "Vũng Tàu", Image = HotelImages[4], Lat = 10.3460, Lng = 107.0843 },
+        new() { Id = "quy-nhon", Name = "Quy Nhơn", Image = HotelImages[0], Lat = 13.7830, Lng = 109.2197 },
+        new() { Id = "ninh-binh", Name = "Ninh Bình", Image = HotelImages[6], Lat = 20.2506, Lng = 105.9745 },
+        new() { Id = "can-tho", Name = "Cần Thơ", Image = HotelImages[2], Lat = 10.0452, Lng = 105.7469 },
     ];
+
+    /// <summary>Tọa độ gần đúng theo địa chỉ mẫu của từng khách sạn (vĩ độ, kinh độ).</summary>
+    private static readonly Dictionary<string, (double Lat, double Lng)> HotelCoords = new()
+    {
+        ["hn-lotus-old-quarter"] = (21.0341, 105.8526),
+        ["hn-west-lake-retreat"] = (21.0656, 105.8257),
+        ["hcm-saigon-skyline"] = (10.7734, 106.7010),
+        ["hcm-district3-boutique"] = (10.7765, 106.6896),
+        ["dn-my-khe-ocean"] = (16.0614, 108.2470),
+        ["dn-han-river-view"] = (16.0717, 108.2243),
+        ["ha-lantern-garden"] = (15.8794, 108.3299),
+        ["nt-coral-bay"] = (12.2401, 109.1966),
+        ["pq-sunset-sanctuary"] = (10.1350, 103.9900),
+        ["dl-pine-hill"] = (11.9365, 108.4430),
+        ["sp-cloud-terrace"] = (22.3330, 103.8460),
+        ["hue-perfume-river"] = (16.4680, 107.5880),
+        ["hue-imperial-garden"] = (16.4710, 107.5770),
+        ["hl-bay-pearl"] = (20.9570, 107.0480),
+        ["vt-back-beach"] = (10.3390, 107.0960),
+        ["qn-ky-co-retreat"] = (13.7620, 109.2190),
+        ["nb-tam-coc-lodge"] = (20.2180, 105.9330),
+        ["ct-mekong-riverside"] = (10.0340, 105.7880),
+    };
 
     private static readonly (string Author, double Rating, string Comment)[] ReviewPool =
     [
@@ -178,6 +201,7 @@ public static class SeedData
             Rooms = MakeRooms(s.Id, s.BasePrice, i),
             Reviews = MakeReviews(i),
             SearchText = Text.Normalize($"{s.Name} {city} {s.Address}"),
+            Location = Geo.Point(HotelCoords[s.Id].Lat, HotelCoords[s.Id].Lng),
         };
     }).ToList();
 
